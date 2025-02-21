@@ -1,0 +1,4 @@
+name = "NamedIndices"
+uuid = "d320af25-0671-467b-b609-d0a3c7405f5f"
+authors = ["Lior Blech <nomadbl@gmail.com>"]
+version = "0.1.0"
