@@ -17,7 +17,7 @@ true
 ```
 
 The original array can be retrieved by using `Base.parent`
-```
+```julia
 julia> ni = NamedIndex(:a, :b)
 julia> x = rand(2)
 julia> w_x = ni(x)
@@ -41,7 +41,7 @@ true
 ```
 
 Matrices or higher dimensional arrays will be sliced along the `axis` dimension
-```
+```julia
 julia> ni = NamedIndex(:a, :b)
 julia> x = reshape(collect(1:10), 2, 5)
 2×5 Matrix{Int64}:
