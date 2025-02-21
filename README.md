@@ -1,9 +1,9 @@
 # NamedIndices.jl
-    `NamedIndex`
-Name numerical indices.
-NamedIndex(names...; axis=1)
-`names` can be either `Symbol` or `Tuple{Symbol,NamedIndex}`.
-`axis` is the axis along which the indices will slice a wrapped array.
+    `NamedIndex`  
+Name numerical indices.  
+    NamedIndex(names...; axis=1)  
+`names` can be either `Symbol` or `Tuple{Symbol,NamedIndex}`.  
+`axis` is the axis along which the indices will slice a wrapped array.  
 
 An array is then wrapped to refer to its contents using the new names.
 
