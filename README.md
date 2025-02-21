@@ -1,7 +1,8 @@
 # NamedIndices.jl
-    `NamedIndex`  
+Defines a `NamedIndex` data type used to wrap arrays to later refer to their contents with names, using the syntax `x.name`.  
+    
 Name numerical indices.  
-    NamedIndex(names...; axis=1)  
+    `NamedIndex(names...; axis=1)`  
 `names` can be either `Symbol` or `Tuple{Symbol,NamedIndex}`.  
 `axis` is the axis along which the indices will slice a wrapped array.  
 
