@@ -41,6 +41,7 @@ true
 julia> x.b.b == 3
 true
 julia> x.b.c == 4
+true
 ```
 
 Matrices or higher dimensional arrays will be sliced along the `axis` dimension

@@ -16,7 +16,7 @@ julia> x.b == 2
 true
 ```
 
-The original array can be retrieved by using Base.parent
+The original array can be retrieved by using `Base.parent`
 ```
 julia> ni = NamedIndex(:a, :b)
 julia> x = rand(2)
@@ -37,6 +37,7 @@ true
 julia> x.b.b == 3
 true
 julia> x.b.c == 4
+true
 ```
 
 Matrices or higher dimensional arrays will be sliced along the `axis` dimension
