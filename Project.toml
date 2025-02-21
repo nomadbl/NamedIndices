@@ -2,3 +2,9 @@ name = "NamedIndices"
 uuid = "d320af25-0671-467b-b609-d0a3c7405f5f"
 authors = ["Lior Blech <nomadbl@gmail.com>"]
 version = "0.1.0"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test",]
