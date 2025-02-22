@@ -31,4 +31,13 @@ using Test, NamedIndices
         @inferred f(x)
         @inferred f(ni)
     end
+    @testset "size checking" begin
+        ni = NamedIndex(:a, :b)
+        x = rand(2)
+        @test_nowarn ni(x)
+        ni = NamedIndex((:ni, ni), (:ni2, ni))
+        @test ni.len == 4
+        ni = NamedIndex((:ni, ni), :a)
+        @test ni.len == 5
+    end
 end
