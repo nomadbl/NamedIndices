@@ -10,12 +10,14 @@ using Test, NamedIndices
     end
     @testset "composed index" begin
         _ni = NamedIndex(:a, :b, :c)
-        ni = NamedIndex(:a, (:b, _ni))
-        x = ni([1,2,3,4])
-        @test x.a == 1
-        @test x.b.a == 2
-        @test x.b.b == 3
-        @test x.b.c == 4
+        @testset "$nit" for nit in (tuple, Pair)
+            ni = NamedIndex(:a, nit(:b, _ni))
+            x = ni([1,2,3,4])
+            @test x.a == 1
+            @test x.b.a == 2
+            @test x.b.b == 3
+            @test x.b.c == 4
+        end
     end
     @testset "slicing" begin
         ni = NamedIndex(:a, :b)

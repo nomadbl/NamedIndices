@@ -3,12 +3,10 @@ module NamedIndices
 import Base: parent, getproperty, propertynames, show
 
 """
-    `NamedIndex`
+    `NamedIndex(names...; axis=1)`
 Name numerical indices.
-NamedIndex(names...; axis=1)
-`names` can be either `Symbol` or `Tuple{Symbol,NamedIndex}`.
+`names` can be either `Symbol` or `Pair{Symbol,NamedIndex}` or `Tuple{Symbol,NamedIndex}`.
 `axis` is the axis along which the indices will slice a wrapped array.
-
 An array is then wrapped to refer to its contents using the new names.
 
 ```julia
@@ -32,7 +30,7 @@ true
 Named Indices may be composed together to construct "namespaces".
 ```julia
 julia> _ni = NamedIndex(:a, :b, :c)
-julia> ni = NamedIndex(:a, (:b, _ni))
+julia> ni = NamedIndex(:a, :b => _ni)
 julia> x = ni([1,2,3,4])
 julia> x.a == 1
 true
@@ -69,7 +67,9 @@ struct NamedIndex{N,I,A}
     intercept::Int
     len::Int
 end
-NamedNamedIndex{N,I,A} = Tuple{Symbol,NamedIndex{N,I,A}}
+NamedNamedIndex{N,I,A} = Union{Tuple{Symbol,NamedIndex{N,I,A}},
+                               Pair{Symbol, NamedIndex{N,I,A}}}
+
 function _buildindices!(lastindex::Ref{Int}, x::Symbol)
     lastindex[] += one(Int)
     return lastindex[]
@@ -86,7 +86,7 @@ function NamedIndex(ax::Int, names::Vararg{Union{Symbol,NamedNamedIndex}})
     lastindex = Ref(zero(ax))
     f! = Base.Fix1(_buildindices!, lastindex)
     indices = map(f!, names)
-    _names = (x->x isa Tuple ? Val(x[1]) : Val(x)).(names)
+    _names = (x->x isa Union{Tuple, Pair} ? Val(x[1]) : Val(x)).(names)
     len = lastindex[]
     NamedIndex(Val(ax), _names, indices, 0, len)
 end
@@ -125,6 +125,9 @@ ___getproperty(i::NamedIndex, intercept) = i
 
 toindex(index::Int) = index
 toindex(index::NamedIndex) = (index.intercept+1):(index.intercept+index.len)
+function show(io::IO, ::MIME"text/plain", ni::NamedIndex{N,I,A}) where {N,I,A}
+    print(io, "NamedIndex(axis=",A,", length=",ni.len,")")
+end
 @inline getname(::Val{N}) where N = N
 function propertynames(index::NamedIndex)
     (:ax, :names, :indices, :intercept, :len, getname.(index.names)...)
