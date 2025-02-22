@@ -1,6 +1,6 @@
 module NamedIndices
 
-import Base: parent, getproperty
+import Base: parent, getproperty, propertynames, show
 
 """
     `NamedIndex`
@@ -110,9 +110,9 @@ function getproperty(index::NamedIndex, name::Symbol)
 end
 function _getproperty(index::NamedIndex, name::Val{N}) where N
     N isa Symbol
-    hasproperty(index, N) && throw(DomainError(name, "$name is a property of NamedIndex, rename it"))
+    hasproperty(index, N) && in(N, _propertynames(index)) || throw(DomainError(name, "$N is a property of NamedIndex, rename it"))
     ind = findfirst(x-> x==name, index.names)
-    ind === nothing && throw(DomainError(N, "NamedIndex has no property $name"))
+    ind === nothing && throw(DomainError(N, "NamedIndex has no property $N"))
     __getproperty(index, Val(convert(Int, ind)))
 end
 function __getproperty(index::NamedIndex, ::Val{N}) where N
@@ -125,6 +125,14 @@ ___getproperty(i::NamedIndex, intercept) = i
 
 toindex(index::Int) = index
 toindex(index::NamedIndex) = (index.intercept+1):(index.intercept+index.len)
+@inline getname(::Val{N}) where N = N
+function propertynames(index::NamedIndex)
+    (:ax, :names, :indices, :intercept, :len, getname.(index.names)...)
+end
+function _propertynames(index::NamedIndex)
+    @inline getname(::Val{N}) where N = N
+    getname.(index.names)
+end
 struct NamedIndexedArray{AX,N,T,NI,I,A<:AbstractArray{T,N}}
     arr::A
     index::NamedIndex{NI,I,AX}
@@ -155,6 +163,14 @@ function _getproperty(x::NamedIndexedArray{AX,N}, name::Val{M}) where {AX,N,M}
 end
 __getproperty(res, index::Int)  = res
 __getproperty(res, index::NamedIndex) = NamedIndexedArray(res, NamedIndex(0, index))
+
+function propertynames(x::NamedIndexedArray)
+    _propertynames(x.index)
+end
+function show(io::IO, ::MIME"text/plain", x::NamedIndexedArray)
+    print(io, size(parent(x)), " NamedIndexedArray{", eltype(parent(x)),"}\n")
+    show(io, parent(x))
+end
 
 export NamedIndex, NamedIndexedArray
 
