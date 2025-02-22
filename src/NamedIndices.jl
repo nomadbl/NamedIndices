@@ -128,6 +128,10 @@ toindex(index::NamedIndex) = (index.intercept+1):(index.intercept+index.len)
 struct NamedIndexedArray{AX,N,T,NI,I,A<:AbstractArray{T,N}}
     arr::A
     index::NamedIndex{NI,I,AX}
+    function NamedIndexedArray(x::A, i::NamedIndex{NI,I,AX}) where {AX,N,T,NI,I,A<:AbstractArray{T,N}}
+        @assert i.len == size(x, AX) "array size $(size(x)) does not match index length $(i.len) on indexing axis $A"
+        new{AX,N,T,NI,I,A}(x, i)
+    end
 end
 Base.parent(x::NamedIndexedArray) = x.arr
 (i::NamedIndex)(x::A) where {A<:AbstractArray} = NamedIndexedArray(x, i)
