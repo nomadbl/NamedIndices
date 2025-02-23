@@ -1,6 +1,6 @@
 module NamedIndices
 
-import Base: parent, getproperty, propertynames, show, length
+import Base: parent, getproperty, propertynames, show, length, setproperty!
 
 """
     `NamedIndex(names...; axis=1)`
@@ -180,6 +180,32 @@ __getproperty(res, index::NamedIndex) = NamedIndexedArray(res, NamedIndex(0, ind
 function propertynames(x::NamedIndexedArray)
     _propertynames(x.index)
 end
+
+function setproperty!(x::NamedIndexedArray, name::Symbol, v)
+    if name == :index
+        return setfield!(x, name)
+    elseif name == :arr
+        return setfield!(x, name)
+    elseif !(Val(name) in getfield(getfield(x, :index), :names))
+        throw(DomainError(name, "NamedIndexedArray has no property $name"))
+    else
+        _setproperty!(x, Val(name), v)
+    end
+end
+function _setproperty!(x::NamedIndexedArray{AX,N}, name::Val{M}, v) where {AX,N,M}
+    index = _getproperty(getfield(x, :index), name)
+    indices = ntuple(i->Val(i) === getfield(getfield(x, :index), :ax) ? toindex(index) : Colon(), Val(N))
+    # if result is not a single item - i.e. it can be further indexed - wrap with the indexing inner NamedIndex
+    __setproperty!(x, indices, index, v)
+end
+function __setproperty!(x, indices, index, v)
+    if x.arr[indices...] isa AbstractArray
+        x.arr[indices...] .= v
+    else
+        x.arr[indices...] = v
+    end
+end
+
 function show(io::IO, ::MIME"text/plain", x::NamedIndexedArray)
     print(io, size(parent(x)), " NamedIndexedArray{", eltype(parent(x)),"}\n")
     show(io, parent(x))

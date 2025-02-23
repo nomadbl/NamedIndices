@@ -37,9 +37,56 @@ using Test, NamedIndices
         ni = NamedIndex(:a, :b)
         x = rand(2)
         @test_nowarn ni(x)
-        ni = NamedIndex((:ni, ni), (:ni2, ni))
+        ni = NamedIndex(:ni=> ni, (:ni2, ni))
         @test ni.len == 4
-        ni = NamedIndex((:ni, ni), :a)
+        ni = NamedIndex(:ni=> ni, :a)
         @test ni.len == 5
+    end
+    @testset "setproperty" begin
+        @testset "flat" begin
+            ni = NamedIndex(:a, :b)
+            x = ni(rand(Float32, 2))
+            x.a = 1
+            x.b = 2
+            @test size(parent(x)) == (2,)
+            @test parent(x) == Float32[1,2]
+            @test parent(x) == Float32[1,2]
+            ni = NamedIndex(:a, :b)
+            x = ni(rand(Float32, 2, 3))
+            x.a = 1
+            x.b = 2
+            @test size(parent(x)) == (2,3)
+            @test parent(x) == Float32[1 1 1; 2 2 2]
+        end
+        @testset "composed" begin
+            ni = NamedIndex(:a, :b)
+            ni = NamedIndex(:ni=> ni, :a)
+            x = ni(rand(Float32, 3))
+            x.ni.a = 1
+            x.ni.b = 2
+            x.a = 3
+            @test size(parent(x)) == (3,)
+            @test parent(x) == Float32[1,2,3]
+
+            x = ni(rand(Float32, 3,2))
+            x.ni.a = 1
+            x.ni.b = 2
+            x.a = 3
+            @test size(parent(x)) == (3,2)
+            @test parent(x) == Float32[1 1; 2 2; 3 3]
+        end
+    end
+    @testset "convenience constructor" begin
+        ni = NamedIndex(:a, :b)
+        x = ni(undef, Int32)
+        @test size(parent(x)) == (2,)
+        @test eltype(parent(x)) == Int32
+        x = ni(undef, Int32, 1,2,3)
+        @test size(parent(x)) == (2,1,2,3)
+        @test eltype(parent(x)) == Int32
+        ni = NamedIndex(:ni=> ni, :a)
+        x = ni(undef, Int32, 1,2,3)
+        @test size(parent(x)) == (3,1,2,3)
+        @test eltype(parent(x)) == Int32
     end
 end
