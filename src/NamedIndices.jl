@@ -125,13 +125,13 @@ ___getproperty(i::NamedIndex, intercept) = i
 
 toindex(index::Int) = index
 toindex(index::NamedIndex) = (index.intercept+1):(index.intercept+index.len)
-@inline getname(::Val{N}) where N = N
+@inline valval(::Val{N}) where N = N
 function propertynames(index::NamedIndex)
-    (:ax, :names, :indices, :intercept, :len, getname.(index.names)...)
+    (:ax, :names, :indices, :intercept, :len, valval.(index.names)...)
 end
 function _propertynames(index::NamedIndex)
-    @inline getname(::Val{N}) where N = N
-    getname.(getfield(index, :names))
+    @inline valval(::Val{N}) where N = N
+    valval.(getfield(index, :names))
 end
 function length(index::NamedIndex)
     getfield(index, :len)
@@ -149,7 +149,13 @@ struct NamedIndexedArray{AX,N,T,NI,I,A<:AbstractArray{T,N}}
     end
 end
 Base.parent(x::NamedIndexedArray) = x.arr
-(i::NamedIndex)(x::A) where {A<:AbstractArray} = NamedIndexedArray(x, i)
+(ni::NamedIndex)(x::A) where {A<:AbstractArray} = NamedIndexedArray(x, ni)
+function (ni::NamedIndex)(::UndefInitializer, elt::Type, size::Vararg{T,N}) where {T,N}
+    ax = valval(getfield(ni, :ax))
+    _size = ntuple(i->(i < ax ? size[i] : (i == ax ? length(ni) : size[i-1])), Val(N+1))
+    x = Array{elt, N+1}(undef, _size...)
+    ni(x)
+end
 function getproperty(x::NamedIndexedArray, name::Symbol)
     if name == :index
         return getfield(x, name)
