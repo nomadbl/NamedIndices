@@ -1,6 +1,6 @@
 module NamedIndices
 
-import Base: parent, getproperty, propertynames, show
+import Base: parent, getproperty, propertynames, show, length
 
 """
     `NamedIndex(names...; axis=1)`
@@ -125,17 +125,21 @@ ___getproperty(i::NamedIndex, intercept) = i
 
 toindex(index::Int) = index
 toindex(index::NamedIndex) = (index.intercept+1):(index.intercept+index.len)
-function show(io::IO, ::MIME"text/plain", ni::NamedIndex{N,I,A}) where {N,I,A}
-    print(io, "NamedIndex(axis=",A,", length=",ni.len,")")
-end
 @inline getname(::Val{N}) where N = N
 function propertynames(index::NamedIndex)
     (:ax, :names, :indices, :intercept, :len, getname.(index.names)...)
 end
 function _propertynames(index::NamedIndex)
     @inline getname(::Val{N}) where N = N
-    getname.(index.names)
+    getname.(getfield(index, :names))
 end
+function length(index::NamedIndex)
+    getfield(index, :len)
+end
+function show(io::IO, ::MIME"text/plain", ni::NamedIndex{N,I,A}) where {N,I,A}
+    print(io, "NamedIndex(axis=",A,", length=",ni.len,")")
+end
+
 struct NamedIndexedArray{AX,N,T,NI,I,A<:AbstractArray{T,N}}
     arr::A
     index::NamedIndex{NI,I,AX}
@@ -159,7 +163,7 @@ function getproperty(x::NamedIndexedArray, name::Symbol)
 end
 function _getproperty(x::NamedIndexedArray{AX,N}, name::Val{M}) where {AX,N,M}
     index = _getproperty(getfield(x, :index), name)
-    indices = ntuple(i->Val(i) === x.index.ax ? toindex(index) : Colon(), Val(N))
+    indices = ntuple(i->Val(i) === getfield(getfield(x, :index), :ax) ? toindex(index) : Colon(), Val(N))
     @views res = x.arr[indices...]
     # if result is not a single item - i.e. it can be further indexed - wrap with the indexing inner NamedIndex
     __getproperty(res, index)
