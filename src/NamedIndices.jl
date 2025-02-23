@@ -140,7 +140,7 @@ function show(io::IO, ::MIME"text/plain", ni::NamedIndex{N,I,A}) where {N,I,A}
     print(io, "NamedIndex(axis=",A,", length=",ni.len,")")
 end
 
-struct NamedIndexedArray{AX,N,T,NI,I,A<:AbstractArray{T,N}}
+struct NamedIndexedArray{AX,N,T,NI,I,A<:AbstractArray{T,N}} <: AbstractArray{T,N}
     arr::A
     index::NamedIndex{NI,I,AX}
     function NamedIndexedArray(x::A, i::NamedIndex{NI,I,AX}) where {AX,N,T,NI,I,A<:AbstractArray{T,N}}
@@ -148,6 +148,9 @@ struct NamedIndexedArray{AX,N,T,NI,I,A<:AbstractArray{T,N}}
         new{AX,N,T,NI,I,A}(x, i)
     end
 end
+Base.size(x::NamedIndexedArray) = size(parent(x))
+Base.getindex(x::NamedIndexedArray, i...) = getindex(parent(x), i...)
+Base.setindex!(x::NamedIndexedArray, v, i...) = setindex!(parent(x), v, i...)
 Base.parent(x::NamedIndexedArray) = x.arr
 (ni::NamedIndex)(x::A) where {A<:AbstractArray} = NamedIndexedArray(x, ni)
 function (ni::NamedIndex)(::UndefInitializer, elt::Type, size::Vararg{T,N}) where {T,N}
@@ -156,6 +159,13 @@ function (ni::NamedIndex)(::UndefInitializer, elt::Type, size::Vararg{T,N}) wher
     x = Array{elt, N+1}(undef, _size...)
     ni(x)
 end
+function Base.similar(x::NamedIndexedArray, ::Type{S}, dims::Dims{N}) where {S,N}
+    ni = getfield(x, :index)
+    ax = valval(getfield(ni, :ax))
+    _dims = ntuple(i->(i < ax ? dims[i] : dims[i+1]), Val(N-1))
+    ni(undef, S, _dims...)
+end
+
 function getproperty(x::NamedIndexedArray, name::Symbol)
     if name == :index
         return getfield(x, name)
