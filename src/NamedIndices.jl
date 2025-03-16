@@ -1,6 +1,6 @@
 module NamedIndices
 
-import Base: parent, getproperty, propertynames, show, length, setproperty!
+import Base: parent, getproperty, propertynames, show, length, setproperty!, keys
 
 """
     `NamedIndex(names...; axis=1)`
@@ -60,45 +60,47 @@ julia> ni(x).a
 ```
 Notice this will always return a view.
 """
-struct NamedIndex{N,I,A}
-    ax::Val{A}
-    names::N
+struct NamedIndex{N,A,I} # N - names, A- axis
     indices::I
     intercept::Int
     len::Int
+    function NamedIndex(ax::Int, names::NTuple{N,Symbol}, indices::I, intercept::Int, len::Int) where {N,I}
+        new{names,ax,I}(indices,intercept,len)
+    end
 end
-NamedNamedIndex{N,I,A} = Union{Tuple{Symbol,NamedIndex{N,I,A}},
-                               Pair{Symbol, NamedIndex{N,I,A}}}
+function NamedIndex(intercept::Int, x::NamedIndex{N,A,I}) where {N,I,A}
+    NamedIndex(A, N, x.indices, intercept, x.len)
+end
+NamedNamedIndex{N,A,I} = Union{Tuple{Symbol,NamedIndex{N,A,I}},
+                               Pair{Symbol, NamedIndex{N,A,I}}}
 
+@inline valval(::Val{N}) where N = N
+
+keys(::NamedIndex{N}) where N = N
 function _buildindices!(lastindex::Ref{Int}, x::Symbol)
     lastindex[] += one(Int)
     return lastindex[]
 end
-function _buildindices!(lastindex::Ref{Int}, x::NamedNamedIndex{N,I,A}) where {N,I,A}
-    index = NamedIndex(lastindex[], x[2])
-    lastindex[] = lastindex[] + x[2].len
+function _buildindices!(lastindex::Ref{Int}, x::NamedNamedIndex{N,A,I}) where {N,I,A}
+    ni = x[2]
+    index = NamedIndex(lastindex[], ni)
+    lastindex[] = lastindex[] + ni.len
     return index
 end
-function NamedIndex(intercept::Int, x::NamedIndex{N,I,A}) where {N,I,A}
-    NamedIndex{N,I,A}(x.ax, x.names, x.indices, intercept, x.len)
-end
+
 function NamedIndex(ax::Int, names::Vararg{Union{Symbol,NamedNamedIndex}})
     lastindex = Ref(zero(ax))
     f! = Base.Fix1(_buildindices!, lastindex)
     indices = map(f!, names)
-    _names = (x->x isa Union{Tuple, Pair} ? Val(x[1]) : Val(x)).(names)
+    _names = (x->x isa Union{Tuple, Pair} ? x[1] : x).(names)
     len = lastindex[]
-    NamedIndex(Val(ax), _names, indices, 0, len)
+    NamedIndex(ax, _names, indices, 0, len)
 end
 function NamedIndex(name::Union{Symbol,NamedNamedIndex}, names::Vararg{Union{Symbol,NamedNamedIndex}}; ax::Int=1)
     NamedIndex(ax, name, names...)
 end
 function getproperty(index::NamedIndex, name::Symbol)
-    if name == :ax
-        return getfield(index, name)
-    elseif name == :names
-        return getfield(index, name)
-    elseif name == :indices
+    if name == :indices
         return getfield(index, name)
     elseif name == :intercept
         return getfield(index, name)
@@ -109,9 +111,8 @@ function getproperty(index::NamedIndex, name::Symbol)
     end
 end
 function _getproperty(index::NamedIndex, name::Val{N}) where N
-    N isa Symbol
-    hasproperty(index, N) && in(N, _propertynames(index)) || throw(DomainError(name, "$N is a property of NamedIndex, rename it"))
-    ind = findfirst(x-> x==name, index.names)
+    hasproperty(index, N) && in(N, keys(index)) || throw(DomainError(name, "$N is a property of NamedIndex, rename it"))
+    ind = findfirst(x-> x==valval(name), keys(index))
     ind === nothing && throw(DomainError(N, "NamedIndex has no property $N"))
     __getproperty(index, Val(convert(Int, ind)))
 end
@@ -125,13 +126,8 @@ ___getproperty(i::NamedIndex, intercept) = i
 
 toindex(index::Int) = index
 toindex(index::NamedIndex) = (index.intercept+1):(index.intercept+index.len)
-@inline valval(::Val{N}) where N = N
 function propertynames(index::NamedIndex)
-    (:ax, :names, :indices, :intercept, :len, valval.(index.names)...)
-end
-function _propertynames(index::NamedIndex)
-    @inline valval(::Val{N}) where N = N
-    valval.(getfield(index, :names))
+    (:indices, :intercept, :len, keys(index)...)
 end
 function length(index::NamedIndex)
     getfield(index, :len)
@@ -142,8 +138,8 @@ end
 
 struct NamedIndexedArray{AX,N,T,NI,I,A<:AbstractArray{T,N}} <: AbstractArray{T,N}
     arr::A
-    index::NamedIndex{NI,I,AX}
-    function NamedIndexedArray(x::A, i::NamedIndex{NI,I,AX}) where {AX,N,T,NI,I,A<:AbstractArray{T,N}}
+    index::NamedIndex{NI,AX,I}
+    function NamedIndexedArray(x::A, i::NamedIndex{NI,AX,I}) where {AX,N,T,NI,I,A<:AbstractArray{T,N}}
         @assert i.len == size(x, AX) "array size $(size(x)) does not match index length $(i.len) on indexing axis $A"
         new{AX,N,T,NI,I,A}(x, i)
     end
@@ -153,50 +149,45 @@ Base.getindex(x::NamedIndexedArray, i...) = getindex(parent(x), i...)
 Base.setindex!(x::NamedIndexedArray, v, i...) = setindex!(parent(x), v, i...)
 Base.parent(x::NamedIndexedArray) = x.arr
 (ni::NamedIndex)(x::A) where {A<:AbstractArray} = NamedIndexedArray(x, ni)
-function (ni::NamedIndex)(::UndefInitializer, elt::Type, size::Vararg{T,N}) where {T,N}
-    ax = valval(getfield(ni, :ax))
-    _size = ntuple(i->(i < ax ? size[i] : (i == ax ? length(ni) : size[i-1])), Val(N+1))
+function (ni::NamedIndex{NI,AX})(::UndefInitializer, elt::Type, size::Vararg{T,N}) where {T,N,NI,AX}
+    _size = ntuple(i->(i < AX ? size[i] : (i == AX ? length(ni) : size[i-1])), Val(N+1))
     x = Array{elt, N+1}(undef, _size...)
     ni(x)
 end
-function Base.similar(x::NamedIndexedArray, ::Type{S}, dims::Dims{N}) where {S,N}
+function Base.similar(x::NamedIndexedArray{AX}, ::Type{S}, dims::Dims{N}) where {S,N,AX}
     ni = getfield(x, :index)
-    ax = valval(getfield(ni, :ax))
-    _dims = ntuple(i->(i < ax ? dims[i] : dims[i+1]), Val(N-1))
+    _dims = ntuple(i->(i < AX ? dims[i] : dims[i+1]), Val(N-1))
     ni(undef, S, _dims...)
 end
 
-function getproperty(x::NamedIndexedArray, name::Symbol)
+function getproperty(x::NamedIndexedArray{AX,N,T,NI,I}, name::Symbol) where {AX,N,T,NI,I}
     if name == :index
         return getfield(x, name)
     elseif name == :arr
         return getfield(x, name)
-    elseif !(Val(name) in getfield(getfield(x, :index), :names))
-        throw(DomainError(name, "NamedIndexedArray has no property $name"))
-    else
+    elseif name in NI
         return _getproperty(x, Val(name))
     end
+    throw(DomainError(name, "NamedIndexedArray has no property $name"))
 end
 function _getproperty(x::NamedIndexedArray{AX,N}, name::Val{M}) where {AX,N,M}
     index = _getproperty(getfield(x, :index), name)
-    indices = ntuple(i->Val(i) === getfield(getfield(x, :index), :ax) ? toindex(index) : Colon(), Val(N))
+    indices = ntuple(i->i == AX ? toindex(index) : Colon(), Val(N))
     @views res = x.arr[indices...]
     # if result is not a single item - i.e. it can be further indexed - wrap with the indexing inner NamedIndex
     __getproperty(res, index)
 end
-__getproperty(res, index::Int)  = res
+__getproperty(res, index::Int) = res
 __getproperty(res, index::NamedIndex) = NamedIndexedArray(res, NamedIndex(0, index))
 
-function propertynames(x::NamedIndexedArray)
-    _propertynames(x.index)
-end
+propertynames(x::NamedIndexedArray) = keys(x.index)
 
 function setproperty!(x::NamedIndexedArray, name::Symbol, v)
     if name == :index
         return setfield!(x, name)
     elseif name == :arr
         return setfield!(x, name)
-    elseif !(Val(name) in getfield(getfield(x, :index), :names))
+    elseif !(name in keys(getfield(x, :index)))
         throw(DomainError(name, "NamedIndexedArray has no property $name"))
     else
         _setproperty!(x, Val(name), v)
@@ -204,7 +195,7 @@ function setproperty!(x::NamedIndexedArray, name::Symbol, v)
 end
 function _setproperty!(x::NamedIndexedArray{AX,N}, name::Val{M}, v) where {AX,N,M}
     index = _getproperty(getfield(x, :index), name)
-    indices = ntuple(i->Val(i) === getfield(getfield(x, :index), :ax) ? toindex(index) : Colon(), Val(N))
+    indices = ntuple(i->i === AX ? toindex(index) : Colon(), Val(N))
     # if result is not a single item - i.e. it can be further indexed - wrap with the indexing inner NamedIndex
     __setproperty!(x, indices, index, v)
 end
