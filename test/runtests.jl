@@ -10,7 +10,7 @@ using Test, NamedIndices
     end
     @testset "composed index" begin
         _ni = NamedIndex(:a, :b, :c)
-        @testset "$nit" for nit in (tuple, Pair)
+        @testset "$nit" for nit in (Pair,)
             ni = NamedIndex(:a, nit(:b, _ni))
             x = ni([1,2,3,4])
             @test x.a == 1
@@ -37,10 +37,10 @@ using Test, NamedIndices
         ni = NamedIndex(:a, :b)
         x = rand(2)
         @test_nowarn ni(x)
-        ni = NamedIndex(:ni=> ni, (:ni2, ni))
-        @test ni.len == 4
+        ni = NamedIndex(:ni=> ni, :ni2=>ni)
+        @test length(ni) == 4
         ni = NamedIndex(:ni=> ni, :a)
-        @test ni.len == 5
+        @test length(ni) == 5
     end
     @testset "setproperty" begin
         @testset "flat" begin
