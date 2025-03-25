@@ -166,13 +166,13 @@ function ___getproperty(i::Int, shape, intercept)
         return res
     end
 end
-function ___getproperty(i::NamedIndex, shape, intercept)
+function ___getproperty(i::NamedIndex{N,A,IND,INT}, shape, intercept) where {N,A,IND,INT}
     if prod(shape) == 1
         return i
     else
         res = Array{NamedIndex}(undef, shape...)
         for I in LinearIndices(shape)
-            res[I] = NamedIndex(intercept+(I-1)*length(i), i)()
+            res[I] = NamedIndex(INT+(I-1)*length(i), i)()
         end
         return res
     end
