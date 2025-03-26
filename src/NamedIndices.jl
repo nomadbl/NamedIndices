@@ -1,6 +1,6 @@
 module NamedIndices
 
-import Base: parent, getproperty, propertynames, show, length, setproperty!, keys, sizes
+import Base: parent, getproperty, propertynames, show, length, setproperty!, keys
 
 """
     `NamedIndex(names...; axis=1)`
@@ -282,6 +282,6 @@ function show(io::IO, ::MIME"text/plain", x::NamedIndexedArray)
     show(io, parent(x))
 end
 
-export NamedIndex, NamedIndexedArray, index
+export NamedIndex, NamedIndexedArray, index, sizes
 
 end # module NamedIndices
