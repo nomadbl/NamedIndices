@@ -1,6 +1,6 @@
 module NamedIndices
 
-import Base: parent, getproperty, propertynames, show, length, setproperty!, keys
+import Base: parent, getproperty, propertynames, show, length, setproperty!, keys, sizes
 
 """
     `NamedIndex(names...; axis=1)`
@@ -101,6 +101,13 @@ Base.length(::Type{NamedIndex{N,A,IND,INT,S,LEN}}) where {N,A,IND,INT,S,LEN} = L
 keys(::NamedIndex{N}) where N = N
 keys(::Type{NamedIndex{N}}) where N = N
 sizes(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = S
+function sizes(::NamedIndex{N,A,IND,INT,S,LEN}, name::Symbol) where {A,N,IND,INT,S,LEN}
+    ind = findfirst(x-> x==name, N)
+    if ind !== nothing
+        return S[ind]
+    end
+    throw(DomainError(name, "NamedIndex has no property $name"))
+end
 axis(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = A
 
 _size(name::Symbol) = (1,)
