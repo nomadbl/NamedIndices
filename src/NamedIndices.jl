@@ -186,7 +186,9 @@ function ___getproperty(i::NamedIndex{N,A,IND,INT}, shape, intercept) where {N,A
 end
 
 toindex(index::Int) = index
+toindex(index::AbstractArray{Int,N}) where N = index
 toindex(index::UnitRange) = index
+toindex(index::AbstractArray{UnitRange,N}) where N = vcat(reshape(index,:)...)
 toindex(index::NamedIndex{N,A,IND,INT,S,LEN}) where {N,A,IND,INT,S,LEN} = (INT+1):(INT+LEN)
 propertynames(index::NamedIndex) = keys(index)
 function show(io::IO, ::MIME"text/plain", ni::NamedIndex{N,A,I}) where {N,I,A}
@@ -239,7 +241,7 @@ function _getproperty(x::NamedIndexedArray{AX,N,T,NI,IND,INT,S,LEN}, name::Val{M
         else
             x_size = filter(a->a!=nothing, ntuple(i->i == AX ? nothing : size(x,i), Val(N)))
             new_size = (size(ind)..., x_size...)
-            indices = ntuple(i->i == AX ? vcat(toindex.(reshape(ind,:))...) : Colon(), Val(N))
+            indices = ntuple(i->i == AX ? toindex(ind) : Colon(), Val(N))
             @views res = reshape(parent(x)[indices...], new_size)
             return res
         end
