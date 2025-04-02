@@ -82,24 +82,22 @@ struct NamedIndex{N,A,IND,INT,S,LEN} # N - names, A- axis
 end
 function NamedIndex(ax::Int, names::NTuple{N,Symbol}, indices::I, intercept::Int, sizes::Tuple, len::Int) where {N,I}
     @assert length(sizes) == N "NamedIndex: number of symbols $N does not match length of shapes list $sizes"
-    NamedIndex{names,ax,indices,intercept,sizes,len}
+    NamedIndex{names,ax,indices,intercept,sizes,len}()
 end
 function NamedIndex(intercept::Int, x::NamedIndex{N,A,IND,INT,S,LEN}) where {N,A,IND,INT,S,LEN}
-    NamedIndex{N,A,IND,intercept,S,LEN}
+    NamedIndex{N,A,IND,intercept,S,LEN}()
 end
 function NamedIndex(intercept::Int, ::Type{NamedIndex{N,A,IND,INT,S,LEN}}) where {N,A,IND,INT,S,LEN}
-    NamedIndex{N,A,IND,intercept,S,LEN}
+    NamedIndex{N,A,IND,intercept,S,LEN}()
 end
 NamedNamedIndex = Pair{Symbol, NamedIndex{N,A,IND,INT,S,LEN}} where {N,A,IND,INT,S,LEN}
 NamedNamedIndexWithSize = Pair{Symbol, Tuple{NamedIndex{N,A,IND,INT,SZ,LEN}, NTuple{S,Int}}} where {N,A,IND,INT,SZ,LEN,S}
 SymbolWithSize = Pair{Symbol, NTuple{S,Int}} where S
 
 Base.length(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = LEN
-Base.length(::Type{NamedIndex{N,A,IND,INT,S,LEN}}) where {N,A,IND,INT,S,LEN} = LEN
 @inline valval(::Val{N}) where N = N
 
 keys(::NamedIndex{N}) where N = N
-keys(::Type{NamedIndex{N}}) where N = N
 sizes(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = S
 function sizes(::NamedIndex{N,A,IND,INT,S,LEN}, name::Symbol) where {A,N,IND,INT,S,LEN}
     ind = findfirst(x-> x==name, N)
@@ -135,7 +133,7 @@ function _buildindices!(lastindex::Ref{Int}, x::NamedNamedIndexWithSize)
 end
 function _buildindices!(lastindex::Ref{Int}, x::NamedNamedIndex, s::NTuple{N,Int}) where N
     ni = x[2]
-    index = NamedIndex(lastindex[]-1, ni)()
+    index = NamedIndex(lastindex[]-1, ni)
     lastindex[] = lastindex[] + length(ni) * prod(s)
     return index
 end
@@ -149,7 +147,7 @@ function NamedIndex(name::Union{Symbol,NamedNamedIndex,SymbolWithSize,NamedNamed
     len = lastindex[] - 1
     _names = map(_name, (name, names...))
     _sizes = map(_size, (name, names...))
-    NamedIndex(ax, _names, indices, 0, _sizes, len)()
+    NamedIndex(ax, _names, indices, 0, _sizes, len)
 end
 
 getproperty(index::NamedIndex, name::Symbol) = _getproperty(index, Val(name))
@@ -179,7 +177,7 @@ function ___getproperty(i::NamedIndex{N,A,IND,INT}, shape, intercept) where {N,A
     else
         res = Array{NamedIndex}(undef, shape...)
         for I in LinearIndices(shape)
-            res[I] = NamedIndex(INT+(I-1)*length(i), i)()
+            res[I] = NamedIndex(INT+(I-1)*length(i), i)
         end
         return res
     end
@@ -235,7 +233,7 @@ function _getproperty(x::NamedIndexedArray{AX,N,T,NI,IND,INT,S,LEN}, name::Val{M
             res = similar(parent(x), NamedIndexedArray, size(ind)...)
             for I in CartesianIndices(size(ind))
                 indices = ntuple(i->i == AX ? toindex(ind[I]) : Colon(), Val(N))
-                @views res[I] = NamedIndexedArray(parent(x)[indices...], NamedIndex(0, ind[I])())
+                @views res[I] = NamedIndexedArray(parent(x)[indices...], NamedIndex(0, ind[I]))
             end
             return res
         else
@@ -254,7 +252,7 @@ function _getproperty(x::NamedIndexedArray{AX,N,T,NI,IND,INT,S,LEN}, name::Val{M
 end
 # if result is not a single item - i.e. it can be further indexed - wrap with the indexing inner NamedIndex
 __getproperty(res, ind::Int) = res
-__getproperty(res, ind::NamedIndex) = NamedIndexedArray(res, NamedIndex(0, ind)())
+__getproperty(res, ind::NamedIndex) = NamedIndexedArray(res, NamedIndex(0, ind))
 
 propertynames(x::NamedIndexedArray) = keys(index(x))
 
