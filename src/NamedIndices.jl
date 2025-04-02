@@ -1,5 +1,6 @@
 module NamedIndices
 
+using StaticArrays
 import Base: parent, getproperty, propertynames, show, length, setproperty!, keys
 
 """
@@ -78,20 +79,30 @@ julia> ni(x).b
  9
 ```
 """
-struct NamedIndex{N,A,IND,INT,S,LEN} # N - names, A- axis
+struct NamedIndex{N,A,IND,INT,S,LEN,IA} # N - names, A- axis
+    indices_arrays::IA
+    function NamedIndex{N,A,IND,INT,S,LEN}(indices::IA) where {N,A,IND,INT,S,LEN,IA}
+        new{N,A,IND,INT,S,LEN,IA}(indices)
+    end
 end
+function _index_arrays(indices, sizes, intercept)
+    indices_arrays = []
+    for i in 1:length(sizes)
+        push!(indices_arrays, _index_array(indices[i], sizes[i], intercept))
+    end
+    out = tuple(indices_arrays...)
+    return out
+end
+
 function NamedIndex(ax::Int, names::NTuple{N,Symbol}, indices::I, intercept::Int, sizes::Tuple, len::Int) where {N,I}
     @assert length(sizes) == N "NamedIndex: number of symbols $N does not match length of shapes list $sizes"
-    NamedIndex{names,ax,indices,intercept,sizes,len}()
+    NamedIndex{names,ax,indices,intercept,sizes,len}(_index_arrays(indices, sizes, intercept))
 end
 function NamedIndex(intercept::Int, x::NamedIndex{N,A,IND,INT,S,LEN}) where {N,A,IND,INT,S,LEN}
-    NamedIndex{N,A,IND,intercept,S,LEN}()
+    NamedIndex{N,A,IND,intercept,S,LEN}(getfield(x,:indices_arrays))
 end
-function NamedIndex(intercept::Int, ::Type{NamedIndex{N,A,IND,INT,S,LEN}}) where {N,A,IND,INT,S,LEN}
-    NamedIndex{N,A,IND,intercept,S,LEN}()
-end
-NamedNamedIndex = Pair{Symbol, NamedIndex{N,A,IND,INT,S,LEN}} where {N,A,IND,INT,S,LEN}
-NamedNamedIndexWithSize = Pair{Symbol, Tuple{NamedIndex{N,A,IND,INT,SZ,LEN}, NTuple{S,Int}}} where {N,A,IND,INT,SZ,LEN,S}
+NamedNamedIndex = Pair{Symbol, NamedIndex{N,A,IND,INT,S,LEN,IA}} where {N,A,IND,INT,S,LEN,IA}
+NamedNamedIndexWithSize = Pair{Symbol, Tuple{NamedIndex{N,A,IND,INT,SZ,LEN,IA}, NTuple{S,Int}}} where {N,A,IND,INT,SZ,LEN,IA,S}
 SymbolWithSize = Pair{Symbol, NTuple{S,Int}} where S
 
 Base.length(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = LEN
@@ -99,6 +110,8 @@ Base.length(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = LEN
 
 keys(::NamedIndex{N}) where N = N
 sizes(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = S
+indices(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = IND
+intercept(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = INT
 function sizes(::NamedIndex{N,A,IND,INT,S,LEN}, name::Symbol) where {A,N,IND,INT,S,LEN}
     ind = findfirst(x-> x==name, N)
     if ind !== nothing
@@ -138,6 +151,29 @@ function _buildindices!(lastindex::Ref{Int}, x::NamedNamedIndex, s::NTuple{N,Int
     return index
 end
 
+function _index_array(i::Int, shape, intercept)
+    if prod(shape) == 1
+        return i + intercept
+    else
+        res = Array{Int}(undef, shape...)
+        for I in LinearIndices(shape)
+            res[I] = i + intercept + I - 1
+        end
+        SArray{Tuple{shape...}}(res)
+    end
+end
+function _index_array(i::NamedIndex{N,A,IND,INT}, shape, intercept) where {N,A,IND,INT}
+    if prod(shape) == 1
+        return i
+    else
+        res = Array{NamedIndex}(undef, shape...)
+        for I in LinearIndices(shape)
+            res[I] = NamedIndex(INT+(I-1)*length(i), i)
+        end
+        return SArray{Tuple{shape...}}(res)
+    end
+end
+
 function NamedIndex(name::Union{Symbol,NamedNamedIndex,SymbolWithSize,NamedNamedIndexWithSize},
                     names::Vararg{Union{Symbol,NamedNamedIndex,SymbolWithSize,NamedNamedIndexWithSize}};
                     ax::Int=1)
@@ -155,32 +191,10 @@ function _getproperty(index::NamedIndex, name::Val{N}) where N
     hasproperty(index, N) && in(N, keys(index)) || throw(DomainError(name, "$N is a property of NamedIndex, rename it"))
     ind = findfirst(x-> x==valval(name), keys(index))
     ind === nothing && throw(DomainError(N, "NamedIndex has no property $N"))
-    __getproperty(index, Val(convert(Int, ind)))
+    __getproperty(index, ind)
 end
-function __getproperty(index::NamedIndex{N,A,IND,INT,S,LEN}, ::Val{NM}) where {NM,N,A,IND,INT,S,LEN}
-    ___getproperty(IND[NM], S[NM], INT)
-end
-function ___getproperty(i::Int, shape, intercept)
-    if prod(shape) == 1
-        return i + intercept
-    else
-        res = Array{Int}(undef, shape...)
-        for I in LinearIndices(shape)
-            res[I] = i + intercept + I - 1
-        end
-        return res
-    end
-end
-function ___getproperty(i::NamedIndex{N,A,IND,INT}, shape, intercept) where {N,A,IND,INT}
-    if prod(shape) == 1
-        return i
-    else
-        res = Array{NamedIndex}(undef, shape...)
-        for I in LinearIndices(shape)
-            res[I] = NamedIndex(INT+(I-1)*length(i), i)
-        end
-        return res
-    end
+function __getproperty(index::NamedIndex{N,A,IND,INT,S,LEN}, NM) where {N,A,IND,INT,S,LEN}
+    getfield(index, :indices_arrays)[NM]
 end
 
 toindex(index::Int) = index
@@ -193,15 +207,56 @@ function show(io::IO, ::MIME"text/plain", ni::NamedIndex{N,A,I}) where {N,I,A}
     print(io, "NamedIndex(axis=",A,", length=",length(ni),")")
 end
 
-struct NamedIndexedArray{AX,N,T,NI,IND,INT,S,LEN,A<:AbstractArray{T,N}} <: AbstractArray{T,N}
+struct NamedIndexedArray{AX,N,T,NI,IND,INT,S,LEN,A<:AbstractArray{T,N},IA,VS} <: AbstractArray{T,N}
     arr::A
-    function NamedIndexedArray(x::A, i::NamedIndex{NI,AX,IND,INT,S,LEN}) where {AX,N,T,NI,IND,INT,S,LEN,A<:AbstractArray{T,N}}
+    index::NamedIndex{NI,AX,IND,INT,S,LEN,IA}
+    subarrays_tuple::VS
+    function NamedIndexedArray(x::A, i::NamedIndex{NI,AX,IND,INT,S,LEN,IA}) where {AX,N,T,NI,IND,INT,S,LEN,IA,A<:AbstractArray{T,N}}
         @assert LEN == size(x, AX) "array size $(size(x)) does not match index length $(length(i)) on indexing axis $A"
-        new{AX,N,T,NI,IND,INT,S,LEN,A}(x)
+        vs = _subarrays_tuple(x,i)
+        new{AX,N,T,NI,IND,INT,S,LEN,A,IA,typeof(vs)}(x,i,vs)
     end
 end
+
+function _subarrays_tuple(x::AbstractArray{T,N}, namedindex::NamedIndex{NI}) where {N,T,NI}
+    subarrays_array = []
+    for name in NI
+        push!(subarrays_array, _subarray(x, namedindex, Val(name)))
+    end
+    return tuple(subarrays_array...)
+end
+function _subarray(x::AbstractArray{T,N}, namedindex::NamedIndex, name::Val{M}) where {N,T,M}
+    AX = axis(namedindex)
+    ind = _getproperty(namedindex, name)
+    if ind isa AbstractArray
+        # return an array of arrays, so that x.name returns an array which can be further indexed without falling back to getindex above
+        if eltype(ind) <: NamedIndex
+            res = similar(x, NamedIndexedArray, size(ind)...)
+            for I in CartesianIndices(size(ind))
+                indices = ntuple(i->i == AX ? toindex(ind[I]) : Colon(), Val(N))
+                @views res[I] = NamedIndexedArray(x[indices...], NamedIndex(0, ind[I]))
+            end
+            return SArray{Tuple{size(ind)...}}(res)
+        else
+            x_size = filter(a->a!=nothing, ntuple(i->i == AX ? nothing : size(x,i), Val(N)))
+            new_size = (size(ind)..., x_size...)
+            indices = ntuple(i->i == AX ? toindex(ind) : Colon(), Val(N))
+            @views res = reshape(x[indices...], new_size)
+            return res
+        end
+    else
+        # return a single item (can be an array)
+        indices = ntuple(i->i == AX ? toindex(ind) : Colon(), Val(N))
+        @views res = x[indices...]
+        return _subarray_rewrap(res, ind)
+    end
+end
+# if result is not a single item - i.e. it can be further indexed - wrap with the indexing inner NamedIndex
+_subarray_rewrap(res, ind::Int) = res
+_subarray_rewrap(res, ind::NamedIndex) = NamedIndexedArray(res, NamedIndex(0, ind))
+
 function index(x::NamedIndexedArray{AX,N,T,NI,IND,INT,S,LEN,A}) where {AX,N,T,NI,IND,INT,S,LEN,A<:AbstractArray{T,N}}
-    NamedIndex{NI,AX,IND,INT,S,LEN}()
+    getfield(x, :index)
 end
 Base.size(x::NamedIndexedArray) = size(parent(x))
 Base.getindex(x::NamedIndexedArray, i...) = getindex(parent(x), i...)
@@ -225,34 +280,13 @@ function getproperty(x::NamedIndexedArray{AX,N,T,NI}, name::Symbol) where {AX,N,
     end
     throw(DomainError(name, "NamedIndexedArray has no property $name"))
 end
-function _getproperty(x::NamedIndexedArray{AX,N,T,NI,IND,INT,S,LEN}, name::Val{M}) where {AX,N,T,NI,IND,INT,S,LEN,M}
-    ind = _getproperty(index(x), name)
-    if ind isa AbstractArray
-        # return an array of arrays, so that x.name returns an array which can be further indexed without falling back to getindex above
-        if eltype(ind) <: NamedIndex
-            res = similar(parent(x), NamedIndexedArray, size(ind)...)
-            for I in CartesianIndices(size(ind))
-                indices = ntuple(i->i == AX ? toindex(ind[I]) : Colon(), Val(N))
-                @views res[I] = NamedIndexedArray(parent(x)[indices...], NamedIndex(0, ind[I]))
-            end
-            return res
-        else
-            x_size = filter(a->a!=nothing, ntuple(i->i == AX ? nothing : size(x,i), Val(N)))
-            new_size = (size(ind)..., x_size...)
-            indices = ntuple(i->i == AX ? toindex(ind) : Colon(), Val(N))
-            @views res = reshape(parent(x)[indices...], new_size)
-            return res
-        end
-    else
-        # return a single item (can be an array)
-        indices = ntuple(i->i == AX ? toindex(ind) : Colon(), Val(N))
-        @views res = parent(x)[indices...]
-        return __getproperty(res, ind)
-    end
+function _getproperty(x::NamedIndexedArray{AX,N,T,NI}, name::Val{M}) where {AX,N,T,NI,M}
+    ind_name = findfirst(n-> n==M, NI)
+    return getfield(x, :subarrays_tuple)[ind_name]
 end
 # if result is not a single item - i.e. it can be further indexed - wrap with the indexing inner NamedIndex
-__getproperty(res, ind::Int) = res
-__getproperty(res, ind::NamedIndex) = NamedIndexedArray(res, NamedIndex(0, ind))
+__getproperty_rewrap(res, ind::Int) = res
+__getproperty_rewrap(res, ind::NamedIndex) = NamedIndexedArray(res, NamedIndex(0, ind))
 
 propertynames(x::NamedIndexedArray) = keys(index(x))
 
