@@ -276,13 +276,10 @@ end
 
 function getproperty(x::NamedIndexedArray{AX,N,T,NI}, name::Symbol) where {AX,N,T,NI}
     if name in NI
-        return _getproperty(x, Val(name))
+        ind_name = findfirst(n-> n==name, NI)
+        return _getproperty_rewrap(getfield(x, :subarrays_tuple)[ind_name])
     end
     throw(DomainError(name, "NamedIndexedArray has no property $name"))
-end
-function _getproperty(x::NamedIndexedArray{AX,N,T,NI}, name::Val{M}) where {AX,N,T,NI,M}
-    ind_name = findfirst(n-> n==M, NI)
-    return _getproperty_rewrap(getfield(x, :subarrays_tuple)[ind_name])
 end
 _getproperty_rewrap(res) = res
 _getproperty_rewrap(res::SubArray{T,0}) where T = res[]
