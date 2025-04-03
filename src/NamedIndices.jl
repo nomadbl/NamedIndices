@@ -282,11 +282,10 @@ function getproperty(x::NamedIndexedArray{AX,N,T,NI}, name::Symbol) where {AX,N,
 end
 function _getproperty(x::NamedIndexedArray{AX,N,T,NI}, name::Val{M}) where {AX,N,T,NI,M}
     ind_name = findfirst(n-> n==M, NI)
-    return getfield(x, :subarrays_tuple)[ind_name]
+    return _getproperty_rewrap(getfield(x, :subarrays_tuple)[ind_name])
 end
-# if result is not a single item - i.e. it can be further indexed - wrap with the indexing inner NamedIndex
-__getproperty_rewrap(res, ind::Int) = res
-__getproperty_rewrap(res, ind::NamedIndex) = NamedIndexedArray(res, NamedIndex(0, ind))
+_getproperty_rewrap(res) = res
+_getproperty_rewrap(res::SubArray{T,0}) where T = res[]
 
 propertynames(x::NamedIndexedArray) = keys(index(x))
 
