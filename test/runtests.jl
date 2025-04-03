@@ -50,30 +50,50 @@ using Test, NamedIndices
             x.b = 2
             @test size(parent(x)) == (2,)
             @test parent(x) == Float32[1,2]
-            @test parent(x) == Float32[1,2]
+            @test x.a[] == 1
+            @test x.b[] == 2
+
             ni = NamedIndex(:a, :b)
             x = ni(rand(Float32, 2, 3))
             x.a = 1
             x.b = 2
             @test size(parent(x)) == (2,3)
             @test parent(x) == Float32[1 1 1; 2 2 2]
+            @test all(map(y->y==1, x.a))
+            @test all(map(y->y==2, x.b))
+
+            ni = NamedIndex(:a=>(2,), :b)
+            x = ni(undef, Float32, 2)
+            x.a = 1
+            x.b = 2
+            @test size(parent(x)) == (3,2)
+            @test parent(x) == Float32[1 1; 1 1; 2 2]
+            @test all(map(y->y==1, x.a))
+            @test all(map(y->y==2, x.b))
         end
         @testset "composed" begin
             ni = NamedIndex(:a, :b)
             ni = NamedIndex(:ni=> ni, :a)
-            x = ni(rand(Float32, 3))
+            x = ni(zeros(Float32, 3))
             x.ni.a = 1
             x.ni.b = 2
             x.a = 3
             @test size(parent(x)) == (3,)
             @test parent(x) == Float32[1,2,3]
+            @test parent(x) == Float32[1,2,3]
+            @test x.ni.a == 1
+            @test x.ni.b == 2
+            @test x.a == 3
 
-            x = ni(rand(Float32, 3,2))
+            x = ni(zeros(Float32, 3,2))
             x.ni.a = 1
             x.ni.b = 2
             x.a = 3
             @test size(parent(x)) == (3,2)
             @test parent(x) == Float32[1 1; 2 2; 3 3]
+            @test all(map(y->y==1, x.ni.a))
+            @test all(map(y->y==2, x.ni.b))
+            @test x.a == 3
         end
     end
     @testset "convenience constructor" begin
