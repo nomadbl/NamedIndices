@@ -247,7 +247,7 @@ function _subarray(x::AbstractArray{T,N}, namedindex::NamedIndex, name::Val{M}) 
     else
         # return a single item (can be an array)
         indices = ntuple(i->i == AX ? toindex(ind) : Colon(), Val(N))
-        @views res = x[indices...]
+        res = view(x, indices...)
         return _subarray_rewrap(res, ind)
     end
 end
