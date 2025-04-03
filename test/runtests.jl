@@ -93,7 +93,7 @@ using Test, NamedIndices
             @test parent(x) == Float32[1 1; 2 2; 3 3]
             @test all(map(y->y==1, x.ni.a))
             @test all(map(y->y==2, x.ni.b))
-            @test x.a == 3
+            @test all(map(y->y==3, x.a))
         end
     end
     @testset "convenience constructor" begin
