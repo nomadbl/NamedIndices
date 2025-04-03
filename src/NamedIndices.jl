@@ -96,7 +96,8 @@ end
 
 function NamedIndex(ax::Int, names::NTuple{N,Symbol}, indices::I, intercept::Int, sizes::Tuple, len::Int) where {N,I}
     @assert length(sizes) == N "NamedIndex: number of symbols $N does not match length of shapes list $sizes"
-    NamedIndex{names,ax,indices,intercept,sizes,len}(_index_arrays(indices, sizes, intercept))
+    # NamedIndex{names,ax,indices,intercept,sizes,len}(_index_arrays(indices, sizes, intercept))
+    NamedIndex{names,ax,I,intercept,sizes,len}(_index_arrays(indices, sizes, intercept))
 end
 function NamedIndex(intercept::Int, x::NamedIndex{N,A,IND,INT,S,LEN}) where {N,A,IND,INT,S,LEN}
     NamedIndex{N,A,IND,intercept,S,LEN}(getfield(x,:indices_arrays))
