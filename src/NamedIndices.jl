@@ -112,6 +112,7 @@ keys(::NamedIndex{N}) where N = N
 sizes(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = S
 indices(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = IND
 intercept(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = INT
+intercept(ni::AbstractArray{NamedIndex}) = intercept(first(ni))
 function sizes(::NamedIndex{N,A,IND,INT,S,LEN}, name::Symbol) where {A,N,IND,INT,S,LEN}
     ind = findfirst(x-> x==name, N)
     if ind !== nothing
