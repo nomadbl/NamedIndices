@@ -312,6 +312,6 @@ function show(io::IO, ::MIME"text/plain", x::NamedIndexedArray)
     show(io, parent(x))
 end
 
-export NamedIndex, NamedIndexedArray, index, sizes
+export NamedIndex, NamedIndexedArray, index, intercept, indices, sizes
 
 end # module NamedIndices
