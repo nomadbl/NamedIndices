@@ -106,7 +106,7 @@ NamedNamedIndexWithSize = Pair{Symbol, Tuple{NamedIndex{N,A,IND,INT,SZ,LEN,IA}, 
 SymbolWithSize = Pair{Symbol, NTuple{S,Int}} where S
 
 Base.length(::NamedIndex{N,A,IND,INT,S,LEN}) where {A,N,IND,INT,S,LEN} = LEN
-Base.length(ni::AbstracrtArray{NamedIndex}) = length(first(ni))
+Base.length(ni::AbstractArray{NamedIndex}) = length(first(ni))
 @inline valval(::Val{N}) where N = N
 
 keys(::NamedIndex{N}) where N = N
